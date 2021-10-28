@@ -1,0 +1,98 @@
+(*
+	Use gc_uiMaxPubs no MQTTClient_Paramenters no LibMQTT para alterar o número de publicadores. É útil para publicar em vários tópicos em um único ciclo de execução.
+	
+	- EnablePublish: esse booleano permite a publicação de uma mensagem em um tópico. É uma habilitação de ponta crescente, evitando que o cliente publique sem controle (explosão de mensagens no broker).
+	- PublishTopic: o nome do tópico, no qual o cliente publicará a mensagem. Se o cliente estiver inscrito no mesmo tópico, também receberá a mensagem publicada.
+	- PubMessage: é o ponteiro para uma variável, que pode ser de qualquer tipo. Essa é a mensagem que será publicada de acordo com seu tamanho.
+	- PubMsgSize: é o tamanho da mensagem que será publicada. Tome cuidado para não passar um tamanho maior que a mensagem, use sempre SIZEOF (PubMessage).
+	- PubMsgQoS: esta é a qualidade de serviço da mensagem que será publicada pelo cliente.
+	- PubMsgRet: informe o broker para reter a mensagem (salvar) para uma inicialização do cliente.
+*)
+
+// No nosso caso utilizamos tcc como nome dos nossos tópicos, mas eles podem ser alterados conforme desejado.
+
+//TÓPICO 1 - Entradas Digitais I0
+N_Pub	:=	1;
+PUBS[N_Pub].bEnablePublish	:=	NOT MQTT_Start.Publish_Status[N_Pub];
+PubMessage[N_Pub][0] := 48 + BOOL_TO_BYTE(I00); //48 é o decimal que representa o char 0, e o numero 49 é representado por 1
+PubMessage[N_Pub][1] := 48 + BOOL_TO_BYTE(I01);
+PubMessage[N_Pub][2] := 48 + BOOL_TO_BYTE(I02);
+PubMessage[N_Pub][3] := 48 + BOOL_TO_BYTE(I03);
+PubMessage[N_Pub][4] := 48 + BOOL_TO_BYTE(I04);
+PubMessage[N_Pub][5] := 48 + BOOL_TO_BYTE(I05);
+PubMessage[N_Pub][6] := 48 + BOOL_TO_BYTE(I06);
+PubMessage[N_Pub][7] := 48 + BOOL_TO_BYTE(I07);
+
+PUBS[N_Pub].sPublishTopic 			:=	'tcc/104_I0'; 
+PUBS[N_Pub].pbPublishPayload 		:=	ADR(PubMessage[N_Pub]);
+PUBS[N_Pub].uiPublishPayloadSize 	:=	8;
+PUBS[N_Pub].ePublishMessageQoS 		:=	GVL.Qualidade; 	//Valor padrão
+PUBS[N_Pub].bPublishRetain			:=	FALSE; 			// Valor padrão
+
+//---------------------------------------------------------------------------------------------------------//
+
+(* TÓPICO 2 - Saídas Digitais Q0*)
+N_Pub	:=	2;
+PUBS[N_Pub].bEnablePublish	:=	NOT MQTT_Start.Publish_Status[N_Pub];
+PubMessage[N_Pub][0] := 48 + BOOL_TO_BYTE(Q00); //48 é o decimal que representa o char 0, e o numero 49 é representado por 1
+PubMessage[N_Pub][1] := 48 + BOOL_TO_BYTE(Q01);
+PubMessage[N_Pub][2] := 48 + BOOL_TO_BYTE(Q02);
+PubMessage[N_Pub][3] := 48 + BOOL_TO_BYTE(Q03);
+PubMessage[N_Pub][4] := 48 + BOOL_TO_BYTE(Q04);
+PubMessage[N_Pub][5] := 48 + BOOL_TO_BYTE(Q05);
+PubMessage[N_Pub][6] := 48 + BOOL_TO_BYTE(Q06);
+PubMessage[N_Pub][7] := 48 + BOOL_TO_BYTE(Q07);
+
+// Somente publicará o valor, se o valor atual for diferente do valor antigo
+IF (PubMessage[N_Pub] <> PubMessage_old)	THEN
+
+	PubMessage_old				:=	PubMessage[N_Pub];
+	PUBS[N_Pub].bEnablePublish	:=	PubEnable;
+
+END_IF
+
+PUBS[N_Pub].sPublishTopic			:=	'tcc/104_Q0';
+PUBS[N_Pub].pbPublishPayload		:=	ADR(PubMessage[N_Pub]);
+PUBS[N_Pub].uiPublishPayloadSize	:=	8;
+PUBS[N_Pub].ePublishMessageQoS		:=	GVL.Qualidade;	// Valor padrão
+PUBS[N_Pub].bPublishRetain			:=	FALSE; 		// Valor padrão 
+
+//-------------------------------------------------------------------------------------------------------------//
+
+(* TÓPICO 3 - Entrada Analógica AI0*)
+N_Pub	:=	3;
+PUBS[N_Pub].bEnablePublish			:=	NOT MQTT_Start.Publish_Status[N_Pub];	
+PubMessage[N_Pub]					:=	INT_TO_STRING(AI0);
+PUBS[N_Pub].sPublishTopic			:=	'tcc/104_AI0';
+PUBS[N_Pub].pbPublishPayload		:=	ADR(PubMessage[N_Pub]);
+PUBS[N_Pub].uiPublishPayloadSize	:=	LEN(PubMessage[N_Pub]);
+
+//-------------------------------------------------------------------------------------------------------------//
+
+(* TÓPICO 4 - Saída Analógica AO0*)
+N_Pub	:=	4;
+PUBS[N_Pub].bEnablePublish			:=	NOT MQTT_Start.Publish_Status[N_Pub];	
+PubMessage[N_Pub]					:=	REAL_TO_STRING(AO0);
+PUBS[N_Pub].sPublishTopic			:=	'tcc/104_AO0';
+PUBS[N_Pub].pbPublishPayload		:=	ADR(PubMessage[N_Pub]);
+PUBS[N_Pub].uiPublishPayloadSize	:=	LEN(PubMessage[N_Pub]);
+
+//-------------------------------------------------------------------------------------------------------------//
+
+(* TÓPICO 5 *)
+N_Pub	:=	5;
+PUBS[N_Pub].bEnablePublish			:=	NOT MQTT_Start.Publish_Status[N_Pub];		
+PubMessage[N_Pub]					:=	BOOL_TO_STRING(I00);
+PUBS[N_Pub].sPublishTopic			:=	'tcc/104_I00';
+PUBS[N_Pub].pbPublishPayload		:=	ADR(PubMessage[N_Pub]);
+PUBS[N_Pub].uiPublishPayloadSize	:=	LEN(PubMessage[N_Pub]);
+
+//------------------------------------------------------------------------------------------------------------//
+
+(* TÓPICO 6 *)
+N_Pub	:=	6;
+PUBS[N_Pub].bEnablePublish			:=	NOT MQTT_Start.Publish_Status[N_Pub];	
+PubMessage[N_Pub]					:=	REAL_TO_STRING(AI0_Real);
+PUBS[N_Pub].sPublishTopic			:=	'tcc/104_AI0';
+PUBS[N_Pub].pbPublishPayload		:=	ADR(PubMessage[N_Pub]);
+PUBS[N_Pub].uiPublishPayloadSize	:=	LEN(PubMessage[N_Pub]);
