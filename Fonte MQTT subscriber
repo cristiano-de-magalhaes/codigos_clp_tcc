@@ -1,0 +1,36 @@
+(*
+	Use gc_uiMaxSubs no MQTTClient_Paramenters no LibMQTT para alterar o número de assinantes. É permitido apenas um tópico por assinante.
+	- SubscribeTopic: é o tópico que o cliente assinará. Quando uma mensagem for publicada para este tópico, o broker a enviará ao cliente. Mantenha a cadeia vazia para não se inscrever em nenhum tópico.
+	- SubscribeQoS: é a qualidade do serviço que a mensagem deve ser entregue a esse cliente.
+*)
+
+//-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
+
+(*
+	- RcvMsg: como todas as mensagens MQTT não existem tipos específicos, é necessário apontar um buffer para a mensagem recebida. Isso é feito durante a assinatura.
+	- RcvBufSize: é o tamanho máximo do buffer, SIZEOF (RcvBuffer). O receptor não permitirá mensagens maiores, cortando o conteúdo para se ajustar ao tamanho máximo.
+*)
+
+//TÓPICO 1 - Saídas Digitais Q0
+N_Sub	:=	1;
+SUBS[N_Sub].sSubscribeTopic		:=	'tcc/104_I0';
+SUBS[N_Sub].pbPayloadBuffer		:=	ADR(RcvMsg1);
+SUBS[N_Sub].uiMaxPayloadSize	:=	SIZEOF(RcvMsg1);
+SUBS[N_Sub].eSubscribeQoS		:=	GVL.Qualidade; //Valor padrão
+Q00	:=	BYTE_TO_BOOL(RcvMsg1[0]	- 48);	(*48 é o decimal que representa o char 0, e o numero 49 é representado por 1*)
+Q01	:=	BYTE_TO_BOOL(RcvMsg1[1]	- 48);
+Q02	:=	BYTE_TO_BOOL(RcvMsg1[2]	- 48);
+Q03	:=	BYTE_TO_BOOL(RcvMsg1[3]	- 48);
+Q04	:=	BYTE_TO_BOOL(RcvMsg1[4]	- 48);
+Q05	:=	BYTE_TO_BOOL(RcvMsg1[5]	- 48);
+Q06	:=	BYTE_TO_BOOL(RcvMsg1[6]	- 48);
+Q07	:=	BYTE_TO_BOOL(RcvMsg1[7]	- 48);
+
+//-----------------------------------------------------------------------------------------------------------------------------------//
+
+//(* TÓPICO 2 - Saída Analógica AO0*)
+N_Sub	:=	2;
+SUBS[N_Sub].sSubscribeTopic		:=	'tcc/104_AO0';
+SUBS[N_Sub].pbPayloadBuffer		:=	ADR(RcvMsg2);
+SUBS[N_Sub].uiMaxPayloadSize	:=	SIZEOF(RcvMsg2);
+AO0	:=	STRING_TO_INT(RcvMsg2);
