@@ -1,0 +1,134 @@
+(* 
+	Este projeto é um exemplo de aplicativo DO Bloco de Funções MQTT_CLIENT.
+
+	O conceito deste exemplo é fazer com que o PLC assine um tópico e depois publique no mesmo tópico, executando um loopback de mensagem (cliente -> broker -> cliente).
+
+	O Bloco de Funções recebe basicamente três estruturas de configuração: CONN (configurações de conexão), SUBS (configurações de assinatura) e PUBS (configurações de publicação).
+	O broker usado neste exemplo é a versão online do Mosquitto, desenvolvida pelo Eclipse. É um broker gratuito para testar clientes MQTT.
+	A descrição completa e as regras de uso podem ser encontradas em https://test.mosquitto.org.
+
+	Os dados de publicação / assinatura são armazenados em variáveis ​​de matriz (SUBS, PUBS e RCV), cujo tamanho (número de tópicos diferentes) pode ser alterado pelos MQTTClient_Paramenters presentes na biblioteca LibMQTT.
+
+	Depois que a variável Enable estiver configurada como TRUE, o CLP se conectará ao broker Mosquitto (o status da conexão pode ser observado nas saídas do bloco de funções), assine o tópico 'Altus / MTOOL_TEST_ST' (definido na variável SubTopic)
+	e configure para publicar no mesmo tópico. Em seguida, na borda ascendente da variável PubEnable, o PLC publicará (uma vez) a mensagem 'TEST' (definida na variável PubMessage) sobre este tópico,
+	e será possível ver a mesma mensagem chegando no buffer de recebimento (variável RcvBuffer). 
+*)
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
+
+(* 
+	- ClientId: é o nome do cliente para o broker, se estiver vazio, um nome aleatório será gerado internamente.
+	- CleanSession: quando TRUE, o broker exclui os parâmetros do cliente após desconectar. Isso é necessário para IDs de clientes aleatórios.
+*)
+
+CONN.sClientId		:=	ClientId;
+CONN.bCleanSession	:=	CleanSession;	
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
+
+(* 
+	- Hostname: o URL ou o IP do broker, que pode ser para agentes locais (por exemplo, Windows Mosquitto) ou de nuvem (por exemplo, Alibaba).
+	- Port: a porta TCP / IP que o broker está se comunicando, a porta MQTT comum é 1883. Para comunicação criptografada por TLS, é 8883.
+	- KeepAlive: é o intervalo (em segundos) do ping que o broker envia ao cliente para verificar se ele ainda está conectado.
+*)
+IF DigitalInputs.I01 = TRUE THEN 
+	Port := 8883;
+	EnableTLS:= TRUE;
+	ELSE
+		Port := 1883;
+		EnableTLS:= FALSE;
+	END_IF;
+	
+	IF DigitalInputs.I00 = TRUE THEN 
+	GVL.Qualidade := 2;
+	ELSE
+		GVL.Qualidade := 0;
+	END_IF;
+	
+
+
+CONN.sHostname		:=	'192.168.0.201'; 
+CONN.uiPort			:=	port;
+CONN.uiKeepAlive	:=	KeepAlive;
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
+
+(*
+	- User: é necessário apenas quando solicitado pelo broker, este é o nome de usuário usado para validar a conexão.
+	- Pass: está relacionada ao Nome de usuário, fornecendo alguma segurança para o acesso ao broker.	
+*)
+
+CONN.sUser	:=	'tcc';
+CONN.sPass	:=	'tcc';
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
+
+(*
+	- LastWillTopic: este é o tópico em que o broker publicará uma mensagem quando o cliente for desconectado, por qualquer motivo. Mantenha esse campo vazio para não configurar uma Última Mensagem.
+	- LastWillMessage: é a própria mensagem, também chamada carga útil. Essa variável pode ser qualquer coisa, é por isso que a entrada do bloco de funções é um ponteiro, portanto é necessário passar seu endereço. Mantenha o ponteiro, pois NULL não configurará a Última Mensagem.
+	- LastWillMsgSize: esse é o tamanho da mensagem, é importante que essa variável seja o SIZEOF (LastWillMessage), pois um valor baixo pode cortar algumas informações e um valor alto envia lixo ou acesso um espaço de memória inválido.
+	- LastWillMsgQoS: é a Qualidade de Serviço da mensagem, que é um enumerado do LibMQTT: QoS 0 -> envia no máximo uma vez; QoS 1 -> envie pelo menos uma vez; QoS 2 -> envie exatamente uma vez.
+	- LastWillMsgRet: marque a mensagem como retida, ela será salva pelo broker e será enviada a um cliente quando houver uma nova conexão e o cliente se inscrever no tópico específico.
+*)
+
+LastWillMsgSize				:=	SIZEOF(LastWillMessage);
+CONN.sLastWillTopic			:=	LastWillTopic;
+CONN.pbLastWillPayload		:=	ADR(LastWillMessage);
+CONN.uiLastWillPayloadSize	:=	LastWillMsgSize;
+CONN.eLastWillMessageQoS	:=	LastWillMsgQoS;
+CONN.bLastWillRetain		:=	LastWillMsgRet;
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
+
+(*
+	- EnableTLS: ative para permitir uma comunicação criptografada TLS, mais segura do que uma credencial simples.
+	- CertFilename: é o nome do certificado usado pelo TLS (versão 1.0), o arquivo deve estar na pasta "cert" do PLC (use "Dispositivos -> Arquivos" para exportar o certificado para o PLC).
+	
+	O link a seguir mostra como gerar um certificado autoassinado com o OpenSSL no Windows:
+		https://mcuoneclipse.com/2017/04/14/enable-secure-communication-with-tls-and-the-mosquitto-broker/
+	Obs.: o certificado não pode ter uma senha e o broker não deve exigir um certificado de cliente.
+*)
+
+CONN.bEnableTLS		:=	EnableTLS;
+CONN.sCertFilename	:=	'ca.crt';
+CONN.sClientCert := Cliente_Certificate;
+CONN.sClientKey := Cliente_Key;
+
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------//
+
+(*
+	*** Entradas ***
+	- Enable: ativa o bloco de funções, que se conectará ao broker, se inscreverá no tópico e estará pronto para publicar e receber mensagens.
+	- CONN: é a estrutura de configuração da conexão.
+	- SUBS: a matriz da estrutura de assinatura (número de elementos por gc_uiMaxSubs).
+	- PUBS: a matriz da estrutura de publicação (número de elementos por gc_uiMaxPubs).
+
+	*** Saídas ***
+	- ConnectionState: indica se o cliente se conectou com sucesso ao broker.
+	- ErrorState: indica que o bloco de funções encontrou um erro.
+	- ErrorCode: é o código do erro encontrado.
+	- Publish_Status: Informa quando a menssagem foi publicada, para cada publisher.
+	- LastTopic: é o último tópico recebido do broker (apenas mensagens assinadas).
+	- RCV: a matriz de mensagens recebidas do broker (número de elementos por gc_uiMaxSubs).
+*)
+
+IF	ErrorState	=	TRUE	THEN
+	Enable	:=	FALSE;
+END_IF
+
+MQTT.ENABLE				:=	Enable;
+MQTT.CONNECTION_CONFIG	:=	CONN;
+MQTT.SUBSCRIBE			:=	SUBS;
+MQTT.PUBLISH			:=	PUBS;
+ConnectionState			:=	MQTT.CONNECTED;
+ErrorState				:=	MQTT.ERROR;
+ErrorCode				:=	MQTT.ERROR_CODE;
+Publish_Status			:= 	MQTT.PUBLISH_STATUS;
+LastTopic				:=	MQTT.LAST_TOPIC;
+RCV						:=	MQTT.RECEIVED_MESSAGES;
+
+
+// LIGUE O BLOCO DE FUNÇÕES
+MQTT();
+
+Enable	:=	TRUE;
